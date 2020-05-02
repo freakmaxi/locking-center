@@ -48,8 +48,8 @@ export BIND_ADDRESS="localhost:22119" # This is optional, if it is not defined i
 ##### Mutex Usage
 
 you can use the clients for the service
-- [https://github.com/freakmaxi/locking-center-client-csharp](C#)
-- [https://github.com/freakmaxi/locking-center-client-go](Go)
+- [C#](https://github.com/freakmaxi/locking-center-client-csharp)
+- [Go](https://github.com/freakmaxi/locking-center-client-go)
 
 or
 
