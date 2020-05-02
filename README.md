@@ -48,8 +48,8 @@ export BIND_ADDRESS="localhost:22119" # This is optional, if it is not defined i
 ##### Mutex Usage
 
 you can use the clients for the service
-- [https://github.com/freakmaxi/locking-center-client-csharp][C#]
-- [https://github.com/freakmaxi/locking-center-client-go][Go]
+- [https://github.com/freakmaxi/locking-center-client-csharp](C#)
+- [https://github.com/freakmaxi/locking-center-client-go](Go)
 
 or
 
@@ -123,7 +123,3 @@ Last byte of the array is this time `3` because resetting action type is `3`.
 
 **You can create your own client for the programming language that you are using and share with me, I'll put it in here on
 client section.**
-
-[Go]: https://github.com/freakmaxi/locking-center-client-go
-
-[C#]: https://github.com/freakmaxi/locking-center-client-csharp
