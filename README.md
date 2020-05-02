@@ -58,7 +58,7 @@ you can follow the instruction.
 Locking-Center is working using TCP Connection. When you make the first TCP connection, you should send the details
 package.
 
-###### Locking
+##### Locking
 
 Package is consist of byte(key string size)/string(key string)/byte(action type) format. Let's create a package.
 
@@ -80,7 +80,7 @@ Ex: key to lock is `locking-me`. **Lock key should not be more than 128 characte
 
 Package Byte Array: `[10, 108, 111, 99, 107, 105, 110, 103, 45, 109, 101, 1]`
 
-When you make the request, you can receive 2 type of answer `-` or `+`
+When you make the request, you can receive 2 type of answers `-` or `+`
 
 - `-` means operation is unsuccessful due to internal error like wrong key format or unlimited resource and try again.
 - '+' means operation is successful and go on for the operation. 
@@ -93,7 +93,7 @@ answer you should continue the operation and close the client connection.
 
 **IMPORTANT: Because of this wait, your TCP client should not have timeout on the connection.** 
 
-###### Unlocking
+##### Unlocking
 
 After you complete the operation on the shared resource, you should make another request to unlock the resource.
 
@@ -102,16 +102,16 @@ time it will be;
 
 Package Byte Array: `[10, 108, 111, 99, 107, 105, 110, 103, 45, 109, 101, 2]`
 
-When you make the request, you can receive 2 type of answer `-` or `+`
+When you make the request, you can receive 2 type of answers `-` or `+`
 
 - `-` means operation is unsuccessful due to internal error like wrong key format or unlimited resource and try again.
 - '+' means operation is successful and go on for the operation. 
 
 if you get `-` you can check the key for the wrong format, if not, try again until you get `+`.
 
-###### Lock Resetting
+##### Lock Resetting
 
-You may have aa failure on your service and while it has lock, it can crash. Service crash will not release the lock 
+You may have a failure on your service and while it has lock, it can crash. Service crash will not release the lock 
 automatically, you should send a reset request to the Locking-Center to drop all the locks for the key.
 
 For this, you need to create a package as before with the different action type byte. Let's create a reset request
