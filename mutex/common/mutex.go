@@ -1,6 +1,9 @@
 package common
 
-import "sync"
+import (
+	"sort"
+	"sync"
+)
 
 type Mutex struct {
 	mutex    *sync.Mutex
@@ -61,6 +64,7 @@ func (m *Mutex) Keys() []string {
 		}
 		keys = append(keys, k)
 	}
+	sort.Strings(keys)
 
 	return keys
 }
