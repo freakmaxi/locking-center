@@ -31,6 +31,10 @@ func (m *Mutex) Lock(key string) {
 }
 
 func (m *Mutex) Unlock(key string) {
+	c := m.channel(key)
+	if len(c) == 0 { // Avoid deadlock on empty channel
+		return
+	}
 	<-m.channel(key)
 }
 
@@ -44,4 +48,19 @@ func (m *Mutex) Reset(key string) {
 
 	close(m.channels[key])
 	delete(m.channels, key)
+}
+
+func (m *Mutex) Keys() []string {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+
+	keys := make([]string, 0)
+	for k := range m.channels {
+		if len(m.channels[k]) == 0 {
+			continue
+		}
+		keys = append(keys, k)
+	}
+
+	return keys
 }
