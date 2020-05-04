@@ -44,14 +44,14 @@ func main() {
 	wg := &sync.WaitGroup{}
 	lock := common.NewLock()
 
-	master, err := service.NewMaster(bindAddr, lock)
+	mutex, err := service.NewMutex(bindAddr, lock)
 	if err != nil {
 		fmt.Printf("ERROR: Service unable to be prepared: %s\n", err)
 		os.Exit(5)
 	}
 
 	wg.Add(1)
-	if err := master.Listen(wg); err != nil {
+	if err := mutex.Listen(wg); err != nil {
 		fmt.Printf("ERROR: Service unable to be started: %s\n", err)
 		os.Exit(10)
 	}

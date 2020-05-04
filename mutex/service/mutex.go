@@ -10,11 +10,11 @@ import (
 	"github.com/freakmaxi/locking-center/mutex/common"
 )
 
-type Master interface {
+type Mutex interface {
 	Listen(wg *sync.WaitGroup) error
 }
 
-type master struct {
+type mutex struct {
 	address *net.TCPAddr
 	mutex   *common.Mutex
 
@@ -22,26 +22,26 @@ type master struct {
 	quiting  bool
 }
 
-func NewMaster(address string, mutex *common.Mutex) (Master, error) {
+func NewMutex(address string, m *common.Mutex) (Mutex, error) {
 	if len(address) == 0 {
 		return nil, fmt.Errorf("address should be defined")
 	}
 	addr, _ := net.ResolveTCPAddr("tcp4", address)
 
-	return &master{
+	return &mutex{
 		address: addr,
-		mutex:   mutex,
+		mutex:   m,
 	}, nil
 }
 
-func (m *master) Listen(wg *sync.WaitGroup) error {
+func (m *mutex) Listen(wg *sync.WaitGroup) error {
 	var err error
 	m.listener, err = net.ListenTCP("tcp", m.address)
 	if err != nil {
 		return err
 	}
 
-	fmt.Printf("INFO: Master Service has started listening at %s\n", m.address.String())
+	fmt.Printf("INFO: Mutex Service has started listening at %s\n", m.address.String())
 
 	go func() {
 		defer wg.Done()
@@ -59,7 +59,7 @@ func (m *master) Listen(wg *sync.WaitGroup) error {
 	return nil
 }
 
-func (m *master) handler(conn net.Conn) {
+func (m *mutex) handler(conn net.Conn) {
 	if err := m.process(conn); err != nil {
 		if err != io.EOF {
 			fmt.Printf("ERROR: Service process is failed: address: %s,%s\n", conn.RemoteAddr(), err)
@@ -74,7 +74,7 @@ func (m *master) handler(conn net.Conn) {
 	}
 }
 
-func (m *master) process(conn net.Conn) error {
+func (m *mutex) process(conn net.Conn) error {
 	var keySize int8
 	if err := binary.Read(conn, binary.LittleEndian, &keySize); err != nil {
 		return err
