@@ -5,12 +5,13 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"sync"
 
 	"github.com/freakmaxi/locking-center/mutex/common"
 )
 
 type Master interface {
-	Listen() error
+	Listen(wg *sync.WaitGroup) error
 }
 
 type master struct {
@@ -33,21 +34,27 @@ func NewMaster(address string, mutex *common.Mutex) (Master, error) {
 	}, nil
 }
 
-func (m *master) Listen() error {
+func (m *master) Listen(wg *sync.WaitGroup) error {
 	var err error
-	m.listener, err = net.ListenTCP("tcp4", m.address)
+	m.listener, err = net.ListenTCP("tcp", m.address)
 	if err != nil {
 		return err
 	}
 
-	for !m.quiting {
-		c, err := m.listener.Accept()
-		if err != nil {
-			fmt.Printf("ERROR: Unable to accept connection: %s\n", err.Error())
-			continue
+	fmt.Printf("INFO: Master Service has started listening at %s\n", m.address.String())
+
+	go func() {
+		defer wg.Done()
+
+		for !m.quiting {
+			c, err := m.listener.Accept()
+			if err != nil {
+				fmt.Printf("ERROR: Unable to accept connection: %s\n", err.Error())
+				continue
+			}
+			go m.handler(c)
 		}
-		go m.handler(c)
-	}
+	}()
 
 	return nil
 }
@@ -55,15 +62,15 @@ func (m *master) Listen() error {
 func (m *master) handler(conn net.Conn) {
 	if err := m.process(conn); err != nil {
 		if err != io.EOF {
-			fmt.Printf("ERROR: Service process is failed: address: %s,%s", conn.RemoteAddr(), err)
+			fmt.Printf("ERROR: Service process is failed: address: %s,%s\n", conn.RemoteAddr(), err)
 		}
 		if _, err := conn.Write([]byte{'-'}); err != nil {
-			fmt.Printf("ERROR: Service failed on unsuccess message: address: %s,%s", conn.RemoteAddr(), err)
+			fmt.Printf("ERROR: Service failed on unsuccess message: address: %s,%s\n", conn.RemoteAddr(), err)
 		}
 		return
 	}
 	if _, err := conn.Write([]byte{'+'}); err != nil {
-		fmt.Printf("ERROR: Service failed on success message: address: %s,%s", conn.RemoteAddr(), err)
+		fmt.Printf("ERROR: Service failed on success message: address: %s,%s\n", conn.RemoteAddr(), err)
 	}
 }
 
