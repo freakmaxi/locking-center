@@ -93,7 +93,8 @@ func (m *mutex) process(conn net.Conn) error {
 
 	switch action {
 	case 1:
-		m.mutex.Lock(key)
+		for !m.mutex.Lock(key) {
+		}
 		return nil
 	case 2:
 		m.mutex.Unlock(key)

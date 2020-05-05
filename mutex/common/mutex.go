@@ -28,9 +28,16 @@ func (m *Mutex) channel(key string) chan bool {
 	return m.channels[key]
 }
 
-func (m *Mutex) Lock(key string) {
-	defer recover() // Handle in case of reset
+func (m *Mutex) Lock(key string) (locked bool) {
+	defer func() {
+		if r := recover(); r != nil {
+			locked = false
+		}
+	}() // Handle in case of reset
 	m.channel(key) <- true
+
+	locked = true
+	return
 }
 
 func (m *Mutex) Unlock(key string) {
