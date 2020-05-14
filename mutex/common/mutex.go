@@ -56,7 +56,17 @@ func (m *Mutex) Reset(key string) {
 		return
 	}
 
-	close(m.channels[key])
+	func(ch chan bool) {
+		close(ch)
+		for {
+			select {
+			case _, more := <-ch:
+				if !more {
+					return
+				}
+			}
+		}
+	}(m.channels[key])
 	delete(m.channels, key)
 }
 
