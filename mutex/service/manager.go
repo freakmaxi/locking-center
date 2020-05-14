@@ -104,6 +104,8 @@ func (m *manager) writeBinaryWithTimeout(conn net.Conn, data interface{}) error 
 }
 
 func (m *manager) handler(conn net.Conn) {
+	defer conn.Close()
+
 	buffer := make([]byte, commandBuffer)
 
 	if err := m.readWithTimeout(conn, buffer, len(buffer)); err != nil {
