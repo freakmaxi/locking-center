@@ -93,7 +93,7 @@ func (m *mutex) process(conn net.Conn) error {
 
 	switch action {
 	case 1:
-		for !m.mutex.Lock(key) {
+		for !m.mutex.Lock(key, conn.RemoteAddr()) {
 		}
 		return nil
 	case 2:

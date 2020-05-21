@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strings"
+	"time"
 
+	"github.com/freakmaxi/locking-center/cli/errors"
 	"github.com/freakmaxi/locking-center/cli/terminal"
 )
 
@@ -17,7 +20,7 @@ type keysCommand struct {
 	basePath       string
 	args           []string
 
-	//listing bool
+	detailed bool
 	//source  string
 }
 
@@ -31,51 +34,47 @@ func NewKeys(managerAddress *net.TCPAddr, output terminal.Output, basePath strin
 }
 
 func (k *keysCommand) Parse() error {
-	/*for len(l.args) > 0 {
-		arg := l.args[0]
+	for len(k.args) > 0 {
+		arg := k.args[0]
 		switch arg {
-		case "-l":
-			l.args = l.args[1:]
-			l.listing = true
-			continue
-		case "-u":
-			l.args = l.args[1:]
-			l.usage = true
+		case "-d":
+			k.args = k.args[1:]
+			k.detailed = true
 			continue
 		case "-h":
 			return errors.ErrShowUsage
 		default:
 			if strings.Index(arg, "-") == 0 {
-				return fmt.Errorf("unsupported argument for ls command")
+				return fmt.Errorf("unsupported argument for keys command")
 			}
 		}
 		break
 	}
 
-	if len(l.args) > 1 {
-		return fmt.Errorf("ls command needs optionally source parameter")
+	if len(k.args) > 0 {
+		return fmt.Errorf("keys command takes only optional modifier arguments")
 	}
 
-	l.source = l.basePath
+	/*l.source = l.basePath
 	if len(l.args) == 1 {
 		if !filepath.IsAbs(l.args[0]) {
 			l.source = path.Join(l.basePath, l.args[0])
 		} else {
 			l.source = l.args[0]
 		}
-	}
-	*/
+	}*/
+
 	return nil
 }
 
 func (k *keysCommand) PrintUsage() {
 	k.output.Println("  keys        List locking keys.")
 	k.output.Println("")
-	/*l.output.Println("arguments:")
-	l.output.Println("  -l          shows in a listing format")
-	l.output.Println("  -u          calculate the size of folders")
-	l.output.Println("")
-	l.output.Println("marking:")
+	k.output.Println("arguments:")
+	k.output.Println("  -d          show detailed usage of keys")
+	//l.output.Println("  -u          calculate the size of folders")
+	k.output.Println("")
+	/*l.output.Println("marking:")
 	l.output.Println("  d           folder")
 	l.output.Println("  -           file")
 	l.output.Println("  •           locked")
@@ -115,7 +114,29 @@ func (k *keysCommand) Execute() error {
 			return err
 		}
 
-		fmt.Println(string(keyBytes))
+		var endPointSize uint8
+		if err := binary.Read(conn, binary.LittleEndian, &endPointSize); err != nil {
+			return err
+		}
+
+		endPointBytes := make([]byte, endPointSize)
+		if _, err := io.ReadAtLeast(conn, endPointBytes, len(endPointBytes)); err != nil {
+			return err
+		}
+
+		var unixTime int64
+		if err := binary.Read(conn, binary.LittleEndian, &unixTime); err != nil {
+			return err
+		}
+
+		if k.detailed {
+			t := time.Unix(unixTime, 0)
+			r := strings.Split(string(endPointBytes), ":")
+
+			fmt.Printf("%15s:%-5s -> %s %s\n", r[0], r[1], t.Local().Format("2006 Jan 02 03:04"), string(keyBytes))
+		} else {
+			fmt.Println(string(keyBytes))
+		}
 	}
 
 	return nil

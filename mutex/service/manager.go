@@ -139,20 +139,34 @@ func (m *manager) process(command string, conn net.Conn) error {
 }
 
 func (m *manager) keys(conn net.Conn) error {
-	keys := m.mutex.Keys()
+	reports := m.mutex.Keys()
 
-	if err := m.writeBinaryWithTimeout(conn, uint32(len(keys))); err != nil {
+	if err := m.writeBinaryWithTimeout(conn, uint32(len(reports))); err != nil {
 		return err
 	}
 
-	for _, key := range keys {
-		keySize := uint8(len(key))
+	for _, report := range reports {
+		keySize := uint8(len(report.Key))
 		if err := m.writeBinaryWithTimeout(conn, keySize); err != nil {
 			return err
 		}
 
-		keyBytes := []byte(key)
+		keyBytes := []byte(report.Key)
 		if err := m.writeWithTimeout(conn, keyBytes); err != nil {
+			return err
+		}
+
+		endPointSize := uint8(len(report.Current.RemoteAddr.String()))
+		if err := m.writeBinaryWithTimeout(conn, endPointSize); err != nil {
+			return err
+		}
+
+		endPointBytes := []byte(report.Current.RemoteAddr.String())
+		if err := m.writeWithTimeout(conn, endPointBytes); err != nil {
+			return err
+		}
+
+		if err := m.writeBinaryWithTimeout(conn, report.Current.Stamp.Unix()); err != nil {
 			return err
 		}
 	}
