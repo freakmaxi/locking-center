@@ -133,7 +133,7 @@ func (k *keysCommand) Execute() error {
 			t := time.Unix(unixTime, 0)
 			r := strings.Split(string(endPointBytes), ":")
 
-			fmt.Printf("%15s:%-5s -> %s %s\n", r[0], r[1], t.Local().Format("2006 Jan 02 03:04"), string(keyBytes))
+			fmt.Printf("%15s:%-5s -> %s %s\n", r[0], r[1], t.Local().Format("2006 Jan 02 15:04"), string(keyBytes))
 		} else {
 			fmt.Println(string(keyBytes))
 		}
