@@ -1,12 +1,10 @@
 package service
 
 import (
-	"encoding/binary"
 	"fmt"
 	"io"
 	"net"
 	"sync"
-	"time"
 
 	"github.com/freakmaxi/locking-center/mutex/common"
 )
@@ -19,8 +17,9 @@ type Manager interface {
 }
 
 type manager struct {
-	address *net.TCPAddr
-	mutex   *common.Mutex
+	address  *net.TCPAddr
+	mutex    *common.Mutex
+	socketIO *SocketIO
 
 	listener *net.TCPListener
 	quiting  bool
@@ -33,8 +32,9 @@ func NewManager(address string, mutex *common.Mutex) (Manager, error) {
 	addr, _ := net.ResolveTCPAddr("tcp", address)
 
 	return &manager{
-		address: addr,
-		mutex:   mutex,
+		address:  addr,
+		mutex:    mutex,
+		socketIO: NewSocketIO(),
 	}, nil
 }
 
@@ -63,52 +63,12 @@ func (m *manager) Listen(wg *sync.WaitGroup) error {
 	return nil
 }
 
-func (m *manager) setDeadline(conn net.Conn, expectedTransferSize int) error {
-	seconds := expectedTransferSize / defaultTransferSpeed
-	if seconds < 0 {
-		seconds = 0
-	}
-	seconds += 30
-
-	return conn.SetDeadline(time.Now().Add(time.Second * time.Duration(seconds)))
-}
-
-func (m *manager) readWithTimeout(conn net.Conn, buffer []byte, size int) error {
-	if err := m.setDeadline(conn, size); err != nil {
-		return err
-	}
-	_, err := io.ReadAtLeast(conn, buffer, size)
-	return err
-}
-
-func (m *manager) readBinaryWithTimeout(conn net.Conn, data interface{}) error {
-	if err := m.setDeadline(conn, 0); err != nil {
-		return err
-	}
-	return binary.Read(conn, binary.LittleEndian, data)
-}
-
-func (m *manager) writeWithTimeout(conn net.Conn, b []byte) error {
-	if err := m.setDeadline(conn, len(b)); err != nil {
-		return err
-	}
-	_, err := conn.Write(b)
-	return err
-}
-
-func (m *manager) writeBinaryWithTimeout(conn net.Conn, data interface{}) error {
-	if err := m.setDeadline(conn, 0); err != nil {
-		return err
-	}
-	return binary.Write(conn, binary.LittleEndian, data)
-}
-
 func (m *manager) handler(conn net.Conn) {
 	defer conn.Close()
 
 	buffer := make([]byte, commandBuffer)
 
-	if err := m.readWithTimeout(conn, buffer, len(buffer)); err != nil {
+	if err := m.socketIO.ReadWithTimeout(conn, buffer, len(buffer)); err != nil {
 		fmt.Printf("ERROR: Stream unable to read: Connection: %s, %s\n", conn.RemoteAddr().String(), err.Error())
 		return
 	}
@@ -117,12 +77,12 @@ func (m *manager) handler(conn net.Conn) {
 		if err != io.EOF {
 			fmt.Printf("ERROR: Service process is failed: address: %s,%s\n", conn.RemoteAddr(), err)
 		}
-		if _, err := conn.Write([]byte{'-'}); err != nil {
+		if err := m.socketIO.WriteWithTimeout(conn, []byte{'-'}); err != nil {
 			fmt.Printf("ERROR: Service failed on unsuccess message: address: %s,%s\n", conn.RemoteAddr(), err)
 		}
 		return
 	}
-	if _, err := conn.Write([]byte{'+'}); err != nil {
+	if err := m.socketIO.WriteWithTimeout(conn, []byte{'+'}); err != nil {
 		fmt.Printf("ERROR: Service failed on success message: address: %s,%s\n", conn.RemoteAddr(), err)
 	}
 }
@@ -141,32 +101,32 @@ func (m *manager) process(command string, conn net.Conn) error {
 func (m *manager) keys(conn net.Conn) error {
 	reports := m.mutex.Keys()
 
-	if err := m.writeBinaryWithTimeout(conn, uint32(len(reports))); err != nil {
+	if err := m.socketIO.WriteBinaryWithTimeout(conn, uint32(len(reports))); err != nil {
 		return err
 	}
 
 	for _, report := range reports {
 		keySize := uint8(len(report.Key))
-		if err := m.writeBinaryWithTimeout(conn, keySize); err != nil {
+		if err := m.socketIO.WriteBinaryWithTimeout(conn, keySize); err != nil {
 			return err
 		}
 
 		keyBytes := []byte(report.Key)
-		if err := m.writeWithTimeout(conn, keyBytes); err != nil {
+		if err := m.socketIO.WriteWithTimeout(conn, keyBytes); err != nil {
 			return err
 		}
 
 		endPointSize := uint8(len(report.Current.RemoteAddr.String()))
-		if err := m.writeBinaryWithTimeout(conn, endPointSize); err != nil {
+		if err := m.socketIO.WriteBinaryWithTimeout(conn, endPointSize); err != nil {
 			return err
 		}
 
 		endPointBytes := []byte(report.Current.RemoteAddr.String())
-		if err := m.writeWithTimeout(conn, endPointBytes); err != nil {
+		if err := m.socketIO.WriteWithTimeout(conn, endPointBytes); err != nil {
 			return err
 		}
 
-		if err := m.writeBinaryWithTimeout(conn, report.Current.Stamp.Unix()); err != nil {
+		if err := m.socketIO.WriteBinaryWithTimeout(conn, report.Current.Stamp.Unix()); err != nil {
 			return err
 		}
 	}
@@ -176,24 +136,24 @@ func (m *manager) keys(conn net.Conn) error {
 
 func (m *manager) reset(conn net.Conn) error {
 	var resetKeysCount uint32
-	if err := m.readBinaryWithTimeout(conn, &resetKeysCount); err != nil {
+	if err := m.socketIO.ReadBinaryWithTimeout(conn, &resetKeysCount); err != nil {
 		return err
 	}
 
 	for ; resetKeysCount > 0; resetKeysCount-- {
 		var keySize uint8
-		if err := m.readBinaryWithTimeout(conn, &keySize); err != nil {
+		if err := m.socketIO.ReadBinaryWithTimeout(conn, &keySize); err != nil {
 			return err
 		}
 
 		keyBytes := make([]byte, keySize)
-		if err := m.readWithTimeout(conn, keyBytes, len(keyBytes)); err != nil {
+		if err := m.socketIO.ReadWithTimeout(conn, keyBytes, len(keyBytes)); err != nil {
 			return err
 		}
 
 		m.mutex.Reset(string(keyBytes))
 
-		if err := m.writeWithTimeout(conn, []byte("+")); err != nil {
+		if err := m.socketIO.WriteWithTimeout(conn, []byte("+")); err != nil {
 			return err
 		}
 	}

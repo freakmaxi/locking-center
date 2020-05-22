@@ -1,7 +1,6 @@
 package service
 
 import (
-	"encoding/binary"
 	"fmt"
 	"io"
 	"net"
@@ -15,8 +14,9 @@ type Mutex interface {
 }
 
 type mutex struct {
-	address *net.TCPAddr
-	mutex   *common.Mutex
+	address  *net.TCPAddr
+	mutex    *common.Mutex
+	socketIO *SocketIO
 
 	listener *net.TCPListener
 	quiting  bool
@@ -29,8 +29,9 @@ func NewMutex(address string, m *common.Mutex) (Mutex, error) {
 	addr, _ := net.ResolveTCPAddr("tcp4", address)
 
 	return &mutex{
-		address: addr,
-		mutex:   m,
+		address:  addr,
+		mutex:    m,
+		socketIO: NewSocketIO(),
 	}, nil
 }
 
@@ -60,34 +61,36 @@ func (m *mutex) Listen(wg *sync.WaitGroup) error {
 }
 
 func (m *mutex) handler(conn net.Conn) {
+	defer conn.Close()
+
 	if err := m.process(conn); err != nil {
 		if err != io.EOF {
 			fmt.Printf("ERROR: Service process is failed: address: %s,%s\n", conn.RemoteAddr(), err)
 		}
-		if _, err := conn.Write([]byte{'-'}); err != nil {
+		if err := m.socketIO.WriteWithTimeout(conn, []byte{'-'}); err != nil {
 			fmt.Printf("ERROR: Service failed on unsuccess message: address: %s,%s\n", conn.RemoteAddr(), err)
 		}
 		return
 	}
-	if _, err := conn.Write([]byte{'+'}); err != nil {
+	if err := m.socketIO.WriteWithTimeout(conn, []byte{'+'}); err != nil {
 		fmt.Printf("ERROR: Service failed on success message: address: %s,%s\n", conn.RemoteAddr(), err)
 	}
 }
 
 func (m *mutex) process(conn net.Conn) error {
 	var keySize int8
-	if err := binary.Read(conn, binary.LittleEndian, &keySize); err != nil {
+	if err := m.socketIO.ReadBinaryWithTimeout(conn, &keySize); err != nil {
 		return err
 	}
 
 	keyBytes := make([]byte, keySize)
-	if _, err := io.ReadAtLeast(conn, keyBytes, len(keyBytes)); err != nil {
+	if err := m.socketIO.ReadWithTimeout(conn, keyBytes, len(keyBytes)); err != nil {
 		return err
 	}
 	key := string(keyBytes)
 
 	var action byte
-	if err := binary.Read(conn, binary.LittleEndian, &action); err != nil {
+	if err := m.socketIO.ReadBinaryWithTimeout(conn, &action); err != nil {
 		return err
 	}
 
