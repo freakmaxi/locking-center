@@ -53,3 +53,7 @@ func (s *SocketIO) WriteBinaryWithTimeout(conn net.Conn, data interface{}) error
 	}
 	return binary.Write(conn, binary.LittleEndian, data)
 }
+
+func (s *SocketIO) Idle(conn net.Conn) {
+	_ = conn.SetDeadline(time.Time{})
+}

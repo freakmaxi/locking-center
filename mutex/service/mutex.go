@@ -94,6 +94,8 @@ func (m *mutex) process(conn net.Conn) error {
 		return err
 	}
 
+	m.socketIO.Idle(conn)
+
 	switch action {
 	case 1:
 		for !m.mutex.Lock(key, conn.RemoteAddr()) {

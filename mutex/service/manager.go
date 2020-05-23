@@ -151,6 +151,7 @@ func (m *manager) reset(conn net.Conn) error {
 			return err
 		}
 
+		m.socketIO.Idle(conn)
 		m.mutex.Reset(string(keyBytes))
 
 		if err := m.socketIO.WriteWithTimeout(conn, []byte("+")); err != nil {

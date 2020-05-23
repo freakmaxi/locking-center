@@ -40,9 +40,7 @@ func (m *Mutex) Lock(key string, remoteAddr net.Addr) (locked bool) {
 		RemoteAddr: remoteAddr,
 		Stamp:      time.Now().UTC(),
 	})
-
-	locked = true
-	return
+	return true
 }
 
 func (m *Mutex) Unlock(key string) {
