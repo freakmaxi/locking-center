@@ -132,8 +132,9 @@ func (k *keysCommand) Execute() error {
 		if k.detailed {
 			t := time.Unix(unixTime, 0)
 			r := strings.Split(string(endPointBytes), ":")
+			d := time.Now().Sub(t)
 
-			fmt.Printf("%15s:%-5s -> %s %s\n", r[0], r[1], t.Local().Format("2006 Jan 02 15:04"), string(keyBytes))
+			fmt.Printf("%15s:%-5s -> %s (%9.3fs) %s\n", r[0], r[1], t.Local().Format("2006 Jan 02 15:04:03"), d.Seconds(), string(keyBytes))
 		} else {
 			fmt.Println(string(keyBytes))
 		}
