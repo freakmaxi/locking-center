@@ -17,11 +17,11 @@ echo ""
 echo "Building Locking Center Server (v$RELEASE_VERSION)"
 cd ../../mutex
 echo "  > compiling linux x64 release"
-GOOS=linux GOARCH=amd64 go build -ldflags "-X main.version=$RELEASE_VERSION" -o ../-build-/executable/releases/linux/locking-center
+GOOS=linux GOARCH=amd64 go build -ldflags "-X main.version=$RELEASE_VERSION" -o ../-build-/executable/releases/linux/lcd
 echo "  > compiling macosx x64 release"
-GOOS=darwin GOARCH=amd64 go build -ldflags "-X main.version=$RELEASE_VERSION" -o ../-build-/executable/releases/macosx/locking-center
+GOOS=darwin GOARCH=amd64 go build -ldflags "-X main.version=$RELEASE_VERSION" -o ../-build-/executable/releases/macosx/lcd
 echo "  > compiling windows x64 release"
-GOOS=windows GOARCH=amd64 go build -ldflags "-X main.version=$RELEASE_VERSION" -o ../-build-/executable/releases/windows/locking-center.exe
+GOOS=windows GOARCH=amd64 go build -ldflags "-X main.version=$RELEASE_VERSION" -o ../-build-/executable/releases/windows/lcd.exe
 
 echo ""
 echo "Building Locking Center CLI (v$RELEASE_VERSION)"
