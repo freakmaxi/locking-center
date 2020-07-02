@@ -5,11 +5,15 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strings"
+
+	"github.com/freakmaxi/locking-center/cli/errors"
 
 	"github.com/freakmaxi/locking-center/cli/terminal"
 )
 
-const resetRemoteCommand = "RSET"
+const resetByKeyRemoteCommand = "RSET"
+const resetBySourceRemoteCommand = "RSBS"
 
 type resetCommand struct {
 	managerAddress *net.TCPAddr
@@ -17,9 +21,8 @@ type resetCommand struct {
 	basePath       string
 	args           []string
 
-	keys []string
-	//listing bool
-	//source  string
+	keys  []string
+	byKey bool
 }
 
 func NewReset(managerAddress *net.TCPAddr, output terminal.Output, basePath string, args []string) execution {
@@ -28,33 +31,30 @@ func NewReset(managerAddress *net.TCPAddr, output terminal.Output, basePath stri
 		output:         output,
 		basePath:       basePath,
 		args:           args,
+		byKey:          true,
 	}
 }
 
 func (r *resetCommand) Parse() error {
-	/*for len(l.args) > 0 {
-		arg := l.args[0]
+	for len(r.args) > 0 {
+		arg := r.args[0]
 		switch arg {
-		case "-l":
-			l.args = l.args[1:]
-			l.listing = true
-			continue
-		case "-u":
-			l.args = l.args[1:]
-			l.usage = true
+		case "-s":
+			r.args = r.args[1:]
+			r.byKey = false
 			continue
 		case "-h":
 			return errors.ErrShowUsage
 		default:
 			if strings.Index(arg, "-") == 0 {
-				return fmt.Errorf("unsupported argument for ls command")
+				return fmt.Errorf("unsupported argument for reset command")
 			}
 		}
 		break
 	}
-	*/
-	if len(r.args) == 0 {
-		return fmt.Errorf("reset command needs key parameter")
+
+	if r.byKey && len(r.args) == 0 {
+		return fmt.Errorf("reset command needs key/source addr parameter")
 	}
 
 	r.keys = make([]string, len(r.args))
@@ -67,16 +67,10 @@ func (r *resetCommand) PrintUsage() {
 	r.output.Println("  reset       Reset locking key and release all locks.")
 	r.output.Println("              Ex: reset locking-key")
 	r.output.Println("")
-	/*l.output.Println("arguments:")
-	l.output.Println("  -l          shows in a listing format")
-	l.output.Println("  -u          calculate the size of folders")
-	l.output.Println("")
-	l.output.Println("marking:")
-	l.output.Println("  d           folder")
-	l.output.Println("  -           file")
-	l.output.Println("  •           locked")
-	l.output.Println("  ↯           zombie")
-	l.output.Println("")*/
+	r.output.Println("arguments:")
+	r.output.Println("  -s          reset by source address. use source address as locking-key parameter")
+	r.output.Println("  -h          shows this help text")
+	r.output.Println("")
 	r.output.Refresh()
 }
 
@@ -89,9 +83,14 @@ func (r *resetCommand) Execute() error {
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
-	if _, err := conn.Write([]byte(resetRemoteCommand)); err != nil {
+	command := resetByKeyRemoteCommand
+	if !r.byKey {
+		command = resetBySourceRemoteCommand
+	}
+
+	if _, err := conn.Write([]byte(command)); err != nil {
 		return err
 	}
 
@@ -99,46 +98,38 @@ func (r *resetCommand) Execute() error {
 		return err
 	}
 
+	if !r.byKey && len(r.keys) == 0 {
+		return r.reset(conn, "")
+	}
+
 	for _, key := range r.keys {
-		if len(key) == 0 || len(key) > 128 {
-			return fmt.Errorf("key is empty or more than 128 characters: %s", key)
-		}
-
-		keySize := uint8(len(key))
-		if err := binary.Write(conn, binary.LittleEndian, keySize); err != nil {
+		if err := r.reset(conn, key); err == nil {
 			return err
-		}
-
-		if _, err := conn.Write([]byte(key)); err != nil {
-			return err
-		}
-
-		if !r.result(conn) {
-			return fmt.Errorf("reseting key is failed: %s", key)
 		}
 	}
 
 	return nil
-	/*if strings.Index(l.source, local) == 0 {
-		return fmt.Errorf("please use O/S native commands to list files/folders")
+}
+
+func (r *resetCommand) reset(conn *net.TCPConn, key string) error {
+	if r.byKey && (len(key) == 0 || len(key) > 128) {
+		return fmt.Errorf("key is empty or more than 128 characters: %s", key)
 	}
 
-	anim := common.NewAnimation(l.output, "processing...")
-	anim.Start()
-
-	folder, err := dfs.List(l.headAddresses, l.source, l.usage)
-	if err != nil {
-		anim.Cancel()
+	keySize := uint8(len(key))
+	if err := binary.Write(conn, binary.LittleEndian, keySize); err != nil {
 		return err
 	}
-	anim.Stop()
 
-	if l.listing {
-		l.printAsList(folder)
-	} else {
-		l.printAsSummary(folder)
+	if _, err := conn.Write([]byte(key)); err != nil {
+		return err
 	}
-	return nil*/
+
+	if !r.result(conn) {
+		return fmt.Errorf("reseting key is failed: %s", key)
+	}
+
+	return nil
 }
 
 func (r *resetCommand) result(conn *net.TCPConn) bool {
@@ -150,75 +141,3 @@ func (r *resetCommand) result(conn *net.TCPConn) bool {
 
 	return string(res) == "+"
 }
-
-/*func (l *listCommand) printAsSummary(folder *common.Folder) {
-	for _, f := range folder.Folders {
-		if l.usage {
-			l.output.Printf("> %s (%s)   ", f.Name, l.sizeToString(f.Size))
-			continue
-		}
-		l.output.Printf("> %s   ", f.Name)
-	}
-	for _, f := range folder.Files {
-		l.output.Printf("%s   ", f.Name)
-	}
-	l.output.Println("")
-	l.output.Refresh()
-}
-
-func (l *listCommand) printAsList(folder *common.Folder) {
-	total := len(folder.Folders) + len(folder.Files)
-
-	if l.usage && total > 1 {
-		l.output.Printf("total %d (%s)\n", total, l.sizeToString(folder.Size))
-	} else {
-		l.output.Printf("total %d\n", total)
-	}
-
-	for _, f := range folder.Folders {
-		l.output.Printf("d %7v %s %s\n", l.sizeToString(f.Size), f.Created.Format("2006 Jan 02 03:04"), f.Name)
-	}
-
-	for _, f := range folder.Files {
-		name := f.Name
-		lockChar := "-"
-		if f.Zombie {
-			lockChar = "↯"
-		} else if f.Locked() {
-			lockChar = "•"
-			name = fmt.Sprintf("%s (locked till %s)", name, f.Lock.Till.Local().Format("2006 Jan 02 03:04"))
-		}
-		l.output.Printf("%s %7v %s %s\n", lockChar, l.sizeToString(f.Size), f.Modified.Local().Format("2006 Jan 02 03:04"), name)
-	}
-
-	l.output.Refresh()
-}
-
-func (l *listCommand) sizeToString(size uint64) string {
-	calculatedSize := size
-	divideCount := 0
-	for {
-		calculatedSizeString := strconv.FormatUint(calculatedSize, 10)
-		if len(calculatedSizeString) < 6 {
-			break
-		}
-		calculatedSize /= 1024
-		divideCount++
-	}
-
-	switch divideCount {
-	case 0:
-		return fmt.Sprintf("%sb", strconv.FormatUint(calculatedSize, 10))
-	case 1:
-		return fmt.Sprintf("%skb", strconv.FormatUint(calculatedSize, 10))
-	case 2:
-		return fmt.Sprintf("%smb", strconv.FormatUint(calculatedSize, 10))
-	case 3:
-		return fmt.Sprintf("%sgb", strconv.FormatUint(calculatedSize, 10))
-	case 4:
-		return fmt.Sprintf("%stb", strconv.FormatUint(calculatedSize, 10))
-	}
-
-	return "N/A"
-}
-*/
