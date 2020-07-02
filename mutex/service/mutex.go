@@ -10,6 +10,15 @@ import (
 	"github.com/freakmaxi/locking-center/mutex/common"
 )
 
+type mutexAction byte
+
+var (
+	maLock          mutexAction = 1
+	maUnlock        mutexAction = 2
+	maResetByKey    mutexAction = 3
+	maResetBySource mutexAction = 4
+)
+
 type Mutex interface {
 	Listen(wg *sync.WaitGroup) error
 }
@@ -90,7 +99,7 @@ func (m *mutex) process(conn net.Conn) error {
 	}
 	key := string(keyBytes)
 
-	var action byte
+	var action mutexAction
 	if err := m.socketIO.ReadBinaryWithTimeout(conn, &action); err != nil {
 		return err
 	}
@@ -98,17 +107,17 @@ func (m *mutex) process(conn net.Conn) error {
 	m.socketIO.Idle(conn)
 
 	switch action {
-	case 1: // Lock
+	case maLock: // Lock
 		for !m.lock.Lock(key, conn.RemoteAddr()) {
 		}
 		return nil
-	case 2: // Unlock
+	case maUnlock: // Unlock
 		m.lock.Unlock(key)
 		return nil
-	case 3: // Reset by Key
+	case maResetByKey: // Reset by Key
 		m.lock.ResetByKey(key)
 		return nil
-	case 4: // Reset by Source Addr
+	case maResetBySource: // Reset by Source Addr
 		if len(key) == 0 {
 			key = conn.RemoteAddr().String()
 			idxColon := strings.Index(key, ":")
