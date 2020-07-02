@@ -143,6 +143,18 @@ func (m *manager) reset(conn net.Conn, byKey bool) error {
 		return err
 	}
 
+	if !byKey && resetKeysCount == 0 {
+		key := conn.RemoteAddr().String()
+		idxColon := strings.Index(key, ":")
+		if idxColon > -1 {
+			key = key[:idxColon]
+		}
+
+		m.lock.ResetBySource(key)
+
+		return m.socketIO.WriteWithTimeout(conn, []byte("+"))
+	}
+
 	for ; resetKeysCount > 0; resetKeysCount-- {
 		var keySize uint8
 		if err := m.socketIO.ReadBinaryWithTimeout(conn, &keySize); err != nil {
@@ -161,13 +173,6 @@ func (m *manager) reset(conn net.Conn, byKey bool) error {
 		if byKey {
 			m.lock.ResetByKey(key)
 		} else {
-			if len(key) == 0 {
-				key = conn.RemoteAddr().String()
-				idxColon := strings.Index(key, ":")
-				if idxColon > -1 {
-					key = key[:idxColon]
-				}
-			}
 			m.lock.ResetBySource(key)
 		}
 
