@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"strings"
 	"sync"
 
 	"github.com/freakmaxi/locking-center/mutex/common"
@@ -92,51 +91,112 @@ func (m *mutex) success(conn net.Conn) bool {
 }
 
 func (m *mutex) process(conn net.Conn) error {
-	var keySize int8
-	if err := m.socketIO.ReadBinaryWithTimeout(conn, &keySize); err != nil {
-		return err
-	}
-
-	keyBytes := make([]byte, keySize)
-	if err := m.socketIO.ReadWithTimeout(conn, keyBytes, len(keyBytes)); err != nil {
-		return err
-	}
-	key := string(keyBytes)
-
 	var action mutexAction
 	if err := m.socketIO.ReadBinaryWithTimeout(conn, &action); err != nil {
 		return err
 	}
 
-	m.socketIO.Idle(conn)
-
 	switch action {
 	case maLock:
-		for !m.lock.Lock(key, conn.RemoteAddr()) {
-		}
-		// If connection is closed before the answer, cancel the lock
-		if !m.success(conn) {
-			m.lock.Unlock(key)
-		}
+		return m.cmdLock(conn)
 	case maUnlock:
-		m.lock.Unlock(key)
-		m.success(conn)
+		return m.cmdUnlock(conn)
 	case maResetByKey:
-		m.lock.ResetByKey(key)
-		m.success(conn)
+		return m.cmdResetByKey(conn)
 	case maResetBySource:
-		if len(key) == 0 {
-			key = conn.RemoteAddr().String()
-			idxColon := strings.Index(key, ":")
-			if idxColon > -1 {
-				key = key[:idxColon]
-			}
-		}
-		m.lock.ResetBySource(key)
-		m.success(conn)
+		return m.cmdResetBySource(conn)
 	default:
 		return fmt.Errorf("undefined action")
 	}
+}
+
+func (m *mutex) readString(conn net.Conn) (*string, error) {
+	var valueSize int8
+	if err := m.socketIO.ReadBinaryWithTimeout(conn, &valueSize); err != nil {
+		return nil, err
+	}
+
+	valueBytes := make([]byte, valueSize)
+	if err := m.socketIO.ReadWithTimeout(conn, valueBytes, len(valueBytes)); err != nil {
+		return nil, err
+	}
+
+	value := string(valueBytes)
+
+	return &value, nil
+}
+
+func (m *mutex) cmdLock(conn net.Conn) error {
+	key, err := m.readString(conn)
+	if err != nil {
+		return err
+	}
+
+	sourceAddrPtr, err := m.readString(conn)
+	if err != nil {
+		return err
+	}
+	sourceAddr := *sourceAddrPtr
+
+	if len(sourceAddr) == 0 {
+		sourceAddr = common.ExtractSourceAddr(conn)
+	}
+
+	m.socketIO.Idle(conn)
+
+	for !m.lock.Lock(*key, sourceAddr, conn.RemoteAddr()) {
+	}
+
+	// If connection is closed before the answer, cancel the lock
+	if !m.success(conn) {
+		m.lock.Unlock(*key)
+	}
+
+	return nil
+}
+
+func (m *mutex) cmdUnlock(conn net.Conn) error {
+	key, err := m.readString(conn)
+	if err != nil {
+		return err
+	}
+
+	m.socketIO.Idle(conn)
+
+	m.lock.Unlock(*key)
+	m.success(conn)
+
+	return nil
+}
+
+func (m *mutex) cmdResetByKey(conn net.Conn) error {
+	key, err := m.readString(conn)
+	if err != nil {
+		return err
+	}
+
+	m.socketIO.Idle(conn)
+
+	m.lock.ResetByKey(*key)
+	m.success(conn)
+
+	return nil
+}
+
+func (m *mutex) cmdResetBySource(conn net.Conn) error {
+	sourceAddrPtr, err := m.readString(conn)
+	if err != nil {
+		return err
+	}
+	sourceAddr := *sourceAddrPtr
+
+	m.socketIO.Idle(conn)
+
+	if len(sourceAddr) == 0 {
+		sourceAddr = common.ExtractSourceAddr(conn)
+	}
+	m.lock.ResetBySource(sourceAddr)
+	m.success(conn)
 
 	return nil
 }

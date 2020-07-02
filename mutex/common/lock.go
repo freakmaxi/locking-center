@@ -31,13 +31,14 @@ func (l *Lock) channel(key string) *Channel {
 	return l.channels[key]
 }
 
-func (l *Lock) Lock(key string, remoteAddr net.Addr) (locked bool) {
+func (l *Lock) Lock(key string, sourceAddr string, remoteAddr net.Addr) (locked bool) {
 	defer func() {
 		if r := recover(); r != nil {
 			locked = false
 		}
 	}() // Handle in case of reset
 	l.channel(key).Push(&Request{
+		SourceAddr: sourceAddr,
 		RemoteAddr: remoteAddr,
 		Stamp:      time.Now().UTC(),
 	})
@@ -71,13 +72,7 @@ func (l *Lock) ResetBySource(sourceAddr string) {
 			continue
 		}
 
-		channelSourceAddr := channel.Latest.RemoteAddr.String()
-		idxColon := strings.Index(channelSourceAddr, ":")
-		if idxColon > -1 {
-			channelSourceAddr = channelSourceAddr[:idxColon]
-		}
-
-		if strings.Compare(channelSourceAddr, sourceAddr) != 0 {
+		if strings.Compare(channel.Latest.SourceAddr, sourceAddr) != 0 {
 			continue
 		}
 

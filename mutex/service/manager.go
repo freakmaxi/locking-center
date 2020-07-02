@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"strings"
 	"sync"
 
 	"github.com/freakmaxi/locking-center/mutex/common"
@@ -119,6 +118,16 @@ func (m *manager) keys(conn net.Conn) error {
 			return err
 		}
 
+		sourceAddrSize := uint8(len(report.Current.SourceAddr))
+		if err := m.socketIO.WriteBinaryWithTimeout(conn, sourceAddrSize); err != nil {
+			return err
+		}
+
+		sourceAddrBytes := []byte(report.Current.SourceAddr)
+		if err := m.socketIO.WriteWithTimeout(conn, sourceAddrBytes); err != nil {
+			return err
+		}
+
 		endPointSize := uint8(len(report.Current.RemoteAddr.String()))
 		if err := m.socketIO.WriteBinaryWithTimeout(conn, endPointSize); err != nil {
 			return err
@@ -144,11 +153,7 @@ func (m *manager) reset(conn net.Conn, byKey bool) error {
 	}
 
 	if !byKey && resetKeysCount == 0 {
-		key := conn.RemoteAddr().String()
-		idxColon := strings.Index(key, ":")
-		if idxColon > -1 {
-			key = key[:idxColon]
-		}
+		key := common.ExtractSourceAddr(conn)
 
 		m.lock.ResetBySource(key)
 

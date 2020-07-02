@@ -97,6 +97,16 @@ func (k *keysCommand) Execute() error {
 			return err
 		}
 
+		var sourceAddrSize uint8
+		if err := binary.Read(conn, binary.LittleEndian, &sourceAddrSize); err != nil {
+			return err
+		}
+
+		sourceAddrBytes := make([]byte, sourceAddrSize)
+		if _, err := io.ReadAtLeast(conn, sourceAddrBytes, len(sourceAddrBytes)); err != nil {
+			return err
+		}
+
 		var endPointSize uint8
 		if err := binary.Read(conn, binary.LittleEndian, &endPointSize); err != nil {
 			return err
@@ -117,10 +127,20 @@ func (k *keysCommand) Execute() error {
 			r := strings.Split(string(endPointBytes), ":")
 			d := time.Now().Sub(t)
 
-			fmt.Printf("%15s:%-5s -> %s (%9.3fs) %s\n", r[0], r[1], t.Local().Format("2006 Jan 02 15:04:03"), d.Seconds(), string(keyBytes))
-		} else {
-			fmt.Println(string(keyBytes))
+			fmt.Printf(
+				"%15s:%-5s -> %s (%9.3fs) %s (%s)\n",
+				r[0],
+				r[1],
+				t.Local().Format("2006 Jan 02 15:04:03"),
+				d.Seconds(),
+				string(keyBytes),
+				string(sourceAddrBytes),
+			)
+
+			continue
 		}
+
+		fmt.Println(string(keyBytes))
 	}
 
 	return nil
