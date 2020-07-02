@@ -9,9 +9,9 @@ mkdir releases/linux
 mkdir releases/macosx
 mkdir releases/windows
 
-buildNo=$(($(date +%s)/345600))
-
-export RELEASE_VERSION="0.1.$buildNo"
+major="0" #$(date +%y)
+buildNo=`printf %04d $(expr $(expr $(date +%s) - $(gdate -d "Jul 2 2020" +%s)) / 345600)`
+export RELEASE_VERSION="$major.2.$buildNo"
 
 echo ""
 echo "Building Locking Center Server (v$RELEASE_VERSION)"
