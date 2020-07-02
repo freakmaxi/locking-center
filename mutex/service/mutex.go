@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strings"
 	"sync"
 
 	"github.com/freakmaxi/locking-center/mutex/common"
@@ -15,14 +16,14 @@ type Mutex interface {
 
 type mutex struct {
 	address  *net.TCPAddr
-	mutex    *common.Mutex
+	lock     *common.Lock
 	socketIO *SocketIO
 
 	listener *net.TCPListener
 	quiting  bool
 }
 
-func NewMutex(address string, m *common.Mutex) (Mutex, error) {
+func NewMutex(address string, lock *common.Lock) (Mutex, error) {
 	if len(address) == 0 {
 		return nil, fmt.Errorf("address should be defined")
 	}
@@ -30,7 +31,7 @@ func NewMutex(address string, m *common.Mutex) (Mutex, error) {
 
 	return &mutex{
 		address:  addr,
-		mutex:    m,
+		lock:     lock,
 		socketIO: NewSocketIO(),
 	}, nil
 }
@@ -61,7 +62,7 @@ func (m *mutex) Listen(wg *sync.WaitGroup) error {
 }
 
 func (m *mutex) handler(conn net.Conn) {
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	if err := m.process(conn); err != nil {
 		if err != io.EOF {
@@ -97,15 +98,25 @@ func (m *mutex) process(conn net.Conn) error {
 	m.socketIO.Idle(conn)
 
 	switch action {
-	case 1:
-		for !m.mutex.Lock(key, conn.RemoteAddr()) {
+	case 1: // Lock
+		for !m.lock.Lock(key, conn.RemoteAddr()) {
 		}
 		return nil
-	case 2:
-		m.mutex.Unlock(key)
+	case 2: // Unlock
+		m.lock.Unlock(key)
 		return nil
-	case 3:
-		m.mutex.Reset(key)
+	case 3: // Reset by Key
+		m.lock.ResetByKey(key)
+		return nil
+	case 4: // Reset by Source Addr
+		if len(key) == 0 {
+			key = conn.RemoteAddr().String()
+			idxColon := strings.Index(key, ":")
+			if idxColon > -1 {
+				key = key[:idxColon]
+			}
+		}
+		m.lock.ResetBySource(key)
 		return nil
 	}
 

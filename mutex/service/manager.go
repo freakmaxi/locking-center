@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strings"
 	"sync"
 
 	"github.com/freakmaxi/locking-center/mutex/common"
@@ -18,14 +19,14 @@ type Manager interface {
 
 type manager struct {
 	address  *net.TCPAddr
-	mutex    *common.Mutex
+	lock     *common.Lock
 	socketIO *SocketIO
 
 	listener *net.TCPListener
 	quiting  bool
 }
 
-func NewManager(address string, mutex *common.Mutex) (Manager, error) {
+func NewManager(address string, lock *common.Lock) (Manager, error) {
 	if len(address) == 0 {
 		return nil, fmt.Errorf("address should be defined")
 	}
@@ -33,7 +34,7 @@ func NewManager(address string, mutex *common.Mutex) (Manager, error) {
 
 	return &manager{
 		address:  addr,
-		mutex:    mutex,
+		lock:     lock,
 		socketIO: NewSocketIO(),
 	}, nil
 }
@@ -64,7 +65,7 @@ func (m *manager) Listen(wg *sync.WaitGroup) error {
 }
 
 func (m *manager) handler(conn net.Conn) {
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	buffer := make([]byte, commandBuffer)
 
@@ -92,14 +93,16 @@ func (m *manager) process(command string, conn net.Conn) error {
 	case "KEYS":
 		return m.keys(conn)
 	case "RSET":
-		return m.reset(conn)
+		return m.reset(conn, true)
+	case "RSBS":
+		return m.reset(conn, false)
 	default:
 		return fmt.Errorf("not a meaningful command")
 	}
 }
 
 func (m *manager) keys(conn net.Conn) error {
-	reports := m.mutex.Keys()
+	reports := m.lock.Keys()
 
 	if err := m.socketIO.WriteBinaryWithTimeout(conn, uint32(len(reports))); err != nil {
 		return err
@@ -134,7 +137,7 @@ func (m *manager) keys(conn net.Conn) error {
 	return nil
 }
 
-func (m *manager) reset(conn net.Conn) error {
+func (m *manager) reset(conn net.Conn, byKey bool) error {
 	var resetKeysCount uint32
 	if err := m.socketIO.ReadBinaryWithTimeout(conn, &resetKeysCount); err != nil {
 		return err
@@ -151,8 +154,22 @@ func (m *manager) reset(conn net.Conn) error {
 			return err
 		}
 
+		key := string(keyBytes)
+
 		m.socketIO.Idle(conn)
-		m.mutex.Reset(string(keyBytes))
+
+		if byKey {
+			m.lock.ResetByKey(key)
+		} else {
+			if len(key) == 0 {
+				key = conn.RemoteAddr().String()
+				idxColon := strings.Index(key, ":")
+				if idxColon > -1 {
+					key = key[:idxColon]
+				}
+			}
+			m.lock.ResetBySource(key)
+		}
 
 		if err := m.socketIO.WriteWithTimeout(conn, []byte("+")); err != nil {
 			return err
