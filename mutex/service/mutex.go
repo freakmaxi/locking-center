@@ -80,11 +80,15 @@ func (m *mutex) handler(conn net.Conn) {
 		if err := m.socketIO.WriteWithTimeout(conn, []byte{'-'}); err != nil {
 			fmt.Printf("ERROR: Service failed on unsuccess message: address: %s,%s\n", conn.RemoteAddr(), err)
 		}
-		return
 	}
+}
+
+func (m *mutex) success(conn net.Conn) bool {
 	if err := m.socketIO.WriteWithTimeout(conn, []byte{'+'}); err != nil {
 		fmt.Printf("ERROR: Service failed on success message: address: %s,%s\n", conn.RemoteAddr(), err)
+		return false
 	}
+	return true
 }
 
 func (m *mutex) process(conn net.Conn) error {
@@ -107,17 +111,20 @@ func (m *mutex) process(conn net.Conn) error {
 	m.socketIO.Idle(conn)
 
 	switch action {
-	case maLock: // Lock
+	case maLock:
 		for !m.lock.Lock(key, conn.RemoteAddr()) {
 		}
-		return nil
-	case maUnlock: // Unlock
+		// If connection is closed before the answer, cancel the lock
+		if !m.success(conn) {
+			m.lock.Unlock(key)
+		}
+	case maUnlock:
 		m.lock.Unlock(key)
-		return nil
-	case maResetByKey: // Reset by Key
+		m.success(conn)
+	case maResetByKey:
 		m.lock.ResetByKey(key)
-		return nil
-	case maResetBySource: // Reset by Source Addr
+		m.success(conn)
+	case maResetBySource:
 		if len(key) == 0 {
 			key = conn.RemoteAddr().String()
 			idxColon := strings.Index(key, ":")
@@ -126,8 +133,10 @@ func (m *mutex) process(conn net.Conn) error {
 			}
 		}
 		m.lock.ResetBySource(key)
-		return nil
+		m.success(conn)
+	default:
+		return fmt.Errorf("undefined action")
 	}
 
-	return fmt.Errorf("undefined action")
+	return nil
 }
