@@ -49,22 +49,25 @@ func (l *Lock) Unlock(key string) {
 	l.channel(key).Pull()
 }
 
-func (l *Lock) ResetByKey(key string) {
+func (l *Lock) ResetByKey(key string) bool {
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
 
 	if _, has := l.channels[key]; !has {
-		return
+		return false
 	}
 
 	l.channels[key].Close()
 	delete(l.channels, key)
+
+	return true
 }
 
-func (l *Lock) ResetBySource(sourceAddr string) {
+func (l *Lock) ResetBySource(sourceAddr string) bool {
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
 
+	reset := false
 	resettingKeys := make([]string, 0)
 
 	for key, channel := range l.channels {
@@ -77,6 +80,7 @@ func (l *Lock) ResetBySource(sourceAddr string) {
 		}
 
 		resettingKeys = append(resettingKeys, key)
+		reset = true
 	}
 
 	for len(resettingKeys) > 0 {
@@ -87,6 +91,8 @@ func (l *Lock) ResetBySource(sourceAddr string) {
 
 		resettingKeys = resettingKeys[1:]
 	}
+
+	return reset
 }
 
 func (l *Lock) Keys() ChannelReports {
