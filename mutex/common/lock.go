@@ -3,9 +3,7 @@ package common
 import (
 	"net"
 	"sort"
-	"strings"
 	"sync"
-	"time"
 )
 
 type Lock struct {
@@ -37,11 +35,7 @@ func (l *Lock) Lock(key string, sourceAddr string, remoteAddr net.Addr) (locked 
 			locked = false
 		}
 	}() // Handle in case of reset
-	l.channel(key).Push(&Request{
-		SourceAddr: sourceAddr,
-		RemoteAddr: remoteAddr,
-		Stamp:      time.Now().UTC(),
-	})
+	l.channel(key).Push(NewRequest(sourceAddr, remoteAddr))
 	return true
 }
 
@@ -49,50 +43,25 @@ func (l *Lock) Unlock(key string) {
 	l.channel(key).Pull()
 }
 
-func (l *Lock) ResetByKey(key string) bool {
+func (l *Lock) ResetByKey(key string) {
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
 
-	if _, has := l.channels[key]; !has {
-		return false
+	channel, has := l.channels[key]
+	if !has {
+		return
 	}
-
-	l.channels[key].Close()
+	channel.Close()
 	delete(l.channels, key)
-
-	return true
 }
 
-func (l *Lock) ResetBySource(sourceAddr string) bool {
+func (l *Lock) ResetBySource(sourceAddr string) {
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
 
-	reset := false
-	resettingKeys := make([]string, 0)
-
-	for key, channel := range l.channels {
-		if channel.Latest == nil {
-			continue
-		}
-
-		if strings.Compare(channel.Latest.SourceAddr, sourceAddr) != 0 {
-			continue
-		}
-
-		resettingKeys = append(resettingKeys, key)
-		reset = true
+	for _, channel := range l.channels {
+		channel.Reset(sourceAddr)
 	}
-
-	for len(resettingKeys) > 0 {
-		key := resettingKeys[0]
-
-		l.channels[key].Close()
-		delete(l.channels, key)
-
-		resettingKeys = resettingKeys[1:]
-	}
-
-	return reset
 }
 
 func (l *Lock) Keys() ChannelReports {

@@ -155,9 +155,7 @@ func (m *manager) reset(conn net.Conn, byKey bool) error {
 	if !byKey && resetKeysCount == 0 {
 		key := common.ExtractSourceAddr(conn)
 
-		for m.lock.ResetBySource(key) {
-			// Retry to reset until it returns false
-		}
+		m.lock.ResetBySource(key)
 
 		return m.socketIO.WriteWithTimeout(conn, []byte("+"))
 	}
@@ -178,13 +176,9 @@ func (m *manager) reset(conn net.Conn, byKey bool) error {
 		m.socketIO.Idle(conn)
 
 		if byKey {
-			for m.lock.ResetByKey(key) {
-				// Retry to reset until it returns false
-			}
+			m.lock.ResetByKey(key)
 		} else {
-			for m.lock.ResetBySource(key) {
-				// Retry to reset until it returns false
-			}
+			m.lock.ResetBySource(key)
 		}
 
 		if err := m.socketIO.WriteWithTimeout(conn, []byte("+")); err != nil {

@@ -176,10 +176,7 @@ func (m *mutex) cmdResetByKey(conn net.Conn) error {
 	}
 
 	m.socketIO.Idle(conn)
-
-	for m.lock.ResetByKey(*key) {
-		// Retry to reset until it returns false
-	}
+	m.lock.ResetByKey(*key)
 	m.success(conn)
 
 	return nil
@@ -197,9 +194,8 @@ func (m *mutex) cmdResetBySource(conn net.Conn) error {
 	if len(sourceAddr) == 0 {
 		sourceAddr = common.ExtractSourceAddr(conn)
 	}
-	for m.lock.ResetBySource(sourceAddr) {
-		// Retry to reset until it returns false
-	}
+
+	m.lock.ResetBySource(sourceAddr)
 	m.success(conn)
 
 	return nil
