@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/freakmaxi/locking-center/cli/errors"
-
 	"github.com/freakmaxi/locking-center/cli/terminal"
 )
 
