@@ -23,27 +23,27 @@ echo ""
 echo "Building Locking Center Server (v$RELEASE_VERSION)"
 cd ../../mutex
 echo "  > compiling linux arm64 release"
-GOOS=linux GOARCH=arm64 go build -ldflags "-X main.version=$RELEASE_VERSION" -X main.build=$BUILD" -o ../-build-/executable/releases/linux/lcd
+GOOS=linux GOARCH=arm64 go build -ldflags "-X main.version=$RELEASE_VERSION -X main.build=$BUILD" -o ../-build-/executable/releases/linux/arm64/lcd
 echo "  > compiling linux amd64 release"
-GOOS=linux GOARCH=amd64 go build -ldflags "-X main.version=$RELEASE_VERSION" -X main.build=$BUILD" -o ../-build-/executable/releases/linux/lcd
+GOOS=linux GOARCH=amd64 go build -ldflags "-X main.version=$RELEASE_VERSION -X main.build=$BUILD" -o ../-build-/executable/releases/linux/amd64/lcd
 echo "  > compiling macosx arm64 release"
-GOOS=darwin GOARCH=arm64 go build -ldflags "-X main.version=$RELEASE_VERSION" -X main.build=$BUILD" -o ../-build-/executable/releases/macosx/lcd
+GOOS=darwin GOARCH=arm64 go build -ldflags "-X main.version=$RELEASE_VERSION -X main.build=$BUILD" -o ../-build-/executable/releases/macosx/arm64/lcd
 echo "  > compiling macosx amd64 release"
-GOOS=darwin GOARCH=amd64 go build -ldflags "-X main.version=$RELEASE_VERSION" -X main.build=$BUILD" -o ../-build-/executable/releases/macosx/lcd
+GOOS=darwin GOARCH=amd64 go build -ldflags "-X main.version=$RELEASE_VERSION -X main.build=$BUILD" -o ../-build-/executable/releases/macosx/amd64/lcd
 echo "  > compiling windows amd64 release"
-GOOS=windows GOARCH=amd64 go build -ldflags "-X main.version=$RELEASE_VERSION" -X main.build=$BUILD" -o ../-build-/executable/releases/windows/lcd.exe
+GOOS=windows GOARCH=amd64 go build -ldflags "-X main.version=$RELEASE_VERSION -X main.build=$BUILD" -o ../-build-/executable/releases/windows/amd64/lcd.exe
 
 echo ""
 echo "Building Locking Center CLI (v$RELEASE_VERSION)"
 cd ../cli
 echo "  > compiling linux arm64 release"
-GOOS=linux GOARCH=arm64 go build -ldflags "-X main.version=$RELEASE_VERSION" -X main.build=$BUILD" -o ../-build-/executable/releases/linux/lc-cli
+GOOS=linux GOARCH=arm64 go build -ldflags "-X main.version=$RELEASE_VERSION -X main.build=$BUILD" -o ../-build-/executable/releases/linux/arm64/lc-cli
 echo "  > compiling linux amd64 release"
-GOOS=linux GOARCH=amd64 go build -ldflags "-X main.version=$RELEASE_VERSION" -X main.build=$BUILD" -o ../-build-/executable/releases/linux/lc-cli
+GOOS=linux GOARCH=amd64 go build -ldflags "-X main.version=$RELEASE_VERSION -X main.build=$BUILD" -o ../-build-/executable/releases/linux/amd64/lc-cli
 echo "  > compiling macosx arm64 release"
-GOOS=darwin GOARCH=arm64 go build -ldflags "-X main.version=$RELEASE_VERSION" -X main.build=$BUILD" -o ../-build-/executable/releases/macosx/lc-cli
+GOOS=darwin GOARCH=arm64 go build -ldflags "-X main.version=$RELEASE_VERSION -X main.build=$BUILD" -o ../-build-/executable/releases/macosx/arm64/lc-cli
 echo "  > compiling macosx amd64 release"
-GOOS=darwin GOARCH=amd64 go build -ldflags "-X main.version=$RELEASE_VERSION" -X main.build=$BUILD" -o ../-build-/executable/releases/macosx/lc-cli
+GOOS=darwin GOARCH=amd64 go build -ldflags "-X main.version=$RELEASE_VERSION -X main.build=$BUILD" -o ../-build-/executable/releases/macosx/amd64/lc-cli
 echo "  > compiling windows amd64 release"
-GOOS=windows GOARCH=amd64 go build -ldflags "-X main.version=$RELEASE_VERSION" -X main.build=$BUILD" -o ../-build-/executable/releases/windows/lc-cli.exe
+GOOS=windows GOARCH=amd64 go build -ldflags "-X main.version=$RELEASE_VERSION -X main.build=$BUILD" -o ../-build-/executable/releases/windows/amd64/lc-cli.exe
 
