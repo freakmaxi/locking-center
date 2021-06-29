@@ -16,7 +16,7 @@ var version = "XX.X.XXXX"
 var build = "XXXXXX"
 
 func main() {
-	fmt.Printf("INFO: ------------ Starting Locking Center v%s.%s------------\n", version, build)
+	fmt.Printf("INFO: ------------ Starting Locking Center v%s.%s ------------\n", version, build)
 
 	bindAddr := os.Getenv("BIND_ADDRESS")
 	if matched, err := regexp.MatchString(`:\d{1,5}$`, bindAddr); err != nil || !matched {
