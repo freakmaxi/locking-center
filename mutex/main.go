@@ -12,8 +12,11 @@ import (
 	"github.com/freakmaxi/locking-center/mutex/service"
 )
 
+var version = "XX.X.XXXX"
+var build = "XXXXXX"
+
 func main() {
-	fmt.Println("INFO: ------------ Starting Locking Center ------------")
+	fmt.Printf("INFO: ------------ Starting Locking Center v%s.%s------------\n", version, build)
 
 	bindAddr := os.Getenv("BIND_ADDRESS")
 	if matched, err := regexp.MatchString(`:\d{1,5}$`, bindAddr); err != nil || !matched {

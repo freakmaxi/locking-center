@@ -10,6 +10,7 @@ import (
 
 type Command struct {
 	version string
+	build   string
 
 	filename       string
 	args           []string
@@ -17,7 +18,7 @@ type Command struct {
 	command        execution
 }
 
-func NewCommand(version string, args []string) *Command {
+func NewCommand(version string, build string, args []string) *Command {
 	_, filename := path.Split(args[0])
 
 	mrArgs := make([]string, 0)
@@ -27,6 +28,7 @@ func NewCommand(version string, args []string) *Command {
 
 	return &Command{
 		version:        version,
+		build:          build,
 		filename:       filename,
 		args:           mrArgs,
 		managerAddress: "localhost:22120",
@@ -78,7 +80,7 @@ func (c *Command) Parse() bool {
 			c.printUsage()
 			return false
 		case "--version":
-			fmt.Printf("%s\n", c.version)
+			fmt.Printf("%s.%s\n", c.version, c.build)
 			return false
 		}
 
